@@ -12,7 +12,7 @@ try:
     )
 
     cursor = conn.cursor()
-    cursor.execute("SELECT id, pdt_desc FROM apparels LIMIT 1")
+    cursor.execute("SELECT id, pdt_desc FROM apparels")
     rows = cursor.fetchall()
 
     for row in rows:
@@ -23,6 +23,8 @@ try:
         cursor.execute(
             "UPDATE apparels SET embedding = %s WHERE id = %s", (embedding, id)
         )
+        print(id, ": completed")
+
     conn.commit()
 
 except Exception as e:
