@@ -4,79 +4,85 @@ import google.generativeai as genai
 import os
 import json
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
 
-API_KEY = "AIzaSyA-mo1K9o-vYyb-Xtbrnde_E_oCaMupkVs"
-genai.configure(api_key=API_KEY)
-llm_model = genai.GenerativeModel("gemini-1.5-flash")
+def build_suggestions_json(user_query):
 
-user_query = "I want a black tshirt for boys, pure cotton"
+    model = SentenceTransformer('all-MiniLM-L6-v2')
 
-query_embedding = model.encode(user_query).tolist()
+    API_KEY = "AIzaSyBTw2WNwIKXddNhH7harJi91FutOhIKJHc"
+    genai.configure(api_key=API_KEY)
+    llm_model = genai.GenerativeModel("gemini-1.5-flash")
 
-try:
-    conn = psycopg2.connect(
-        dbname = "shopping_data",
-        user = "postgres",
-        password = "Pj262001@",
-        host = "localhost"
-    )
+    # user_query = "I want a black tshirt for boys, pure cotton"
 
-    cursor = conn.cursor()
+    query_embedding = model.encode(user_query).tolist()
 
-    cursor.execute("""
-        SELECT id, category, sub_category, uri, content, pdt_desc as description
-        FROM apparels
-        ORDER BY embedding <=> %s::vector LIMIT 10
-    """, (query_embedding,)
-    )
+    try:
+        conn = psycopg2.connect(
+            dbname = "shopping_data",
+            user = "postgres",
+            password = "Pj262001@",
+            host = "localhost"
+        )
 
-    responses = cursor.fetchall()
-    product_list = []
+        cursor = conn.cursor()
 
-    for response in responses:
-        id = response[0]
-        category = response[1]
-        sub_category = response[2]
-        uri = response[3]
-        content = response[4]
-        pdt_desc = response[5]
+        cursor.execute("""
+            SELECT id, category, sub_category, uri, content, pdt_desc as description
+            FROM apparels
+            ORDER BY embedding <=> %s::vector LIMIT 10
+        """, (query_embedding,)
+        )
 
-        prompt = f"""Read this user search text: '{user_query}' 
-                    Compare it against the product record: '{pdt_desc}' 
-                    Return a response with 3 values:
-                    1) MATCH: if the 2 products are at least 85% matching or not: YES or NO
-                    2) PERCENTAGE: percentage of match, make sure that this percentage is accurate
-                    3) DIFFERENCE: A clear short easy description of the difference between the 2 products.
-                    Remember if the user search text says that some attribute should not be there, and the product record has it, it should be a NO match.
-                    """
-        
-        LLM_output = llm_model.generate_content(prompt).text.strip()
-        # print(LLM_output)
+        responses = cursor.fetchall()
+        product_list = []
 
-        if '**MATCH:** YES' in LLM_output:
-            product_data = {
-                "id" : id,
-                "category" : category,
-                "sub_category" : sub_category,
-                "uri" : uri,
-                "description" : pdt_desc,
-                "llm_response" : LLM_output
-            }
+        for response in responses:
+            id = response[0]
+            category = response[1]
+            sub_category = response[2]
+            uri = response[3]
+            content = response[4]
+            pdt_desc = response[5]
 
-            product_list.append(product_data)
+            prompt = f"""Read this user search text: '{user_query}' 
+                        Compare it against the product record: '{pdt_desc}' 
+                        Return a response with 3 values:
+                        1) MATCH: if the 2 products are at least 85% matching or not: YES or NO
+                        2) PERCENTAGE: percentage of match, make sure that this percentage is accurate
+                        3) DIFFERENCE: A clear short easy description of the difference between the 2 products.
+                        Remember if the user search text says that some attribute should not be there, and the product record has it, it should be a NO match.
+                        """
+            
+            LLM_output = llm_model.generate_content(prompt).text.strip()
+            # print(LLM_output)
 
-    final_suggestions = product_list[:min(4,len(product_list))]
-    json_output = json.dumps(product_list)
-    print('total suggested products: ', len(product_list))
-    print('Final Suggestions: ', len(final_suggestions))
+            if '**MATCH:** YES' in LLM_output:
+                product_data = {
+                    "id" : id,
+                    "category" : category,
+                    "sub_category" : sub_category,
+                    "uri" : uri,
+                    "description" : pdt_desc,
+                    "llm_response" : LLM_output
+                }
 
-except Exception as e:
-    print("could not fetch data : ", e)
+                product_list.append(product_data)
 
-finally:
-    if cursor:
-        cursor.close()
-    if conn:
-        conn.close()
+        final_suggestions = product_list[:min(4,len(product_list))]
+        # json_output = json.dumps(product_list)
+        print('total suggested products: ', len(product_list))
+        print('Final Suggestions: ', len(final_suggestions))
+
+        return final_suggestions
+
+    except Exception as e:
+        print("could not fetch data : ", e)
+        return json.dumps({"error": str(e)})
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
