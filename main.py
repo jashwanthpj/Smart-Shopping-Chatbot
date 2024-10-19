@@ -1,7 +1,6 @@
 import psycopg2
 from sentence_transformers import SentenceTransformer
-import google.generativeai as genai
-import os
+import requests
 import json
 
 
@@ -9,9 +8,7 @@ def build_suggestions_json(user_query):
 
     model = SentenceTransformer('all-MiniLM-L6-v2')
 
-    API_KEY = "AIzaSyBTw2WNwIKXddNhH7harJi91FutOhIKJHc"
-    genai.configure(api_key=API_KEY)
-    llm_model = genai.GenerativeModel("gemini-1.5-flash")
+    url = "http://localhost:11434/api/generate"
 
     # user_query = "I want a black tshirt for boys, pure cotton"
 
@@ -24,7 +21,6 @@ def build_suggestions_json(user_query):
             password = "Pj262001@",
             host = "localhost"
         )
-
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -52,25 +48,39 @@ def build_suggestions_json(user_query):
                         2) PERCENTAGE: percentage of match, make sure that this percentage is accurate
                         3) DIFFERENCE: A clear short easy description of the difference between the 2 products.
                         Remember if the user search text says that some attribute should not be there, and the product record has it, it should be a NO match.
-                        """
+                        Expected output-
+                        'MATCH': YES,
+                        PERCENTAGE: 90,
+                        DIFFERENCE: The product is a black casual T-shirt suitable for boys, matching the requested color and category. However, it’s labeled as a T-shirt instead of a formal shirt.
+                """
             
-            LLM_output = llm_model.generate_content(prompt).text.strip()
+            query_payload = {
+                "model" : "mistral",
+                "prompt" : prompt,
+                "stream" : False
+            }
+            headers = {"Content-Type" : "application/json"}
+
+            LLM_output = requests.post(url, json=query_payload, headers=headers)
+            print("this is the llm output: \n\n",LLM_output)
+            LLM_output.raise_for_status()
+            
+            LLM_response = LLM_output.json()['response']
             # print(LLM_output)
 
-            if '**MATCH:** YES' in LLM_output:
+            if 'YES' in LLM_response:
                 product_data = {
                     "id" : id,
                     "category" : category,
                     "sub_category" : sub_category,
                     "uri" : uri,
                     "description" : pdt_desc,
-                    "llm_response" : LLM_output
+                    "llm_response" : LLM_response
                 }
 
                 product_list.append(product_data)
 
         final_suggestions = product_list[:min(4,len(product_list))]
-        # json_output = json.dumps(product_list)
         print('total suggested products: ', len(product_list))
         print('Final Suggestions: ', len(final_suggestions))
 
