@@ -1,0 +1,7 @@
+python 3.12.1
+PostgreSQL
+pgvector Extension
+psycopg2==2.9.7
+sentence-transformers==2.2.2
+Ollama mistral 8b
+# google-generative-ai==1.4.0
