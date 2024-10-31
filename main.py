@@ -26,7 +26,7 @@ def build_suggestions_json(user_query):
         cursor.execute("""
             SELECT id, category, sub_category, uri, content, pdt_desc as description
             FROM apparels
-            ORDER BY embedding <=> %s::vector LIMIT 10
+            ORDER BY embedding <=> %s::vector LIMIT 5
         """, (query_embedding,)
         )
 
@@ -69,18 +69,24 @@ def build_suggestions_json(user_query):
             # print(LLM_output)
 
             if 'YES' in LLM_response:
+                try:
+                    percentage = int(LLM_response.split('PERCENTAGE:')[1].split(',')[0].strip())
+                except(IndexError, ValueError):
+                    percentage = 0
                 product_data = {
                     "id" : id,
                     "category" : category,
                     "sub_category" : sub_category,
                     "uri" : uri,
                     "description" : pdt_desc,
-                    "llm_response" : LLM_response
+                    "llm_response" : LLM_response,
+                    "match_percentage" : percentage
                 }
 
                 product_list.append(product_data)
 
-        final_suggestions = product_list[:min(4,len(product_list))]
+        top_products = sorted(product_list, key=lambda x: x["match_percentage"], reverse=True)
+        final_suggestions = top_products[:min(4,len(product_list))]
         print('total suggested products: ', len(product_list))
         print('Final Suggestions: ', len(final_suggestions))
 
