@@ -1,4 +1,4 @@
-Executive Summary: Smart Shopping Agent
+Smart Shopping Agent
 The Smart Shopping Agent is an innovative chatbot designed to provide personalized product recommendations for users, focusing on the apparel industry. The project combines the efficiency of information retrieval with the accuracy of language generation, creating a smart, user-friendly shopping assistant.
 
 Project Highlights:
